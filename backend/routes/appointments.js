@@ -1,12 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 
 // Initialize Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_KEY || ''
 );
+
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
 
 // Create new appointment
 router.post('/', async (req, res) => {
@@ -25,6 +33,14 @@ router.post('/', async (req, res) => {
     // Generate appointment ID
     const appointmentId = `apt_${Math.random().toString(36).substr(2, 9)}`;
 
+    // Create Razorpay order
+    const order = await razorpay.orders.create({
+      amount: 50000, // ₹500 in paise
+      currency: 'INR',
+      receipt: appointmentId,
+      payment_capture: 1
+    });
+
     // Create appointment record
     const appointmentRecord = {
       id: appointmentId,
@@ -37,7 +53,8 @@ router.post('/', async (req, res) => {
       type: appointmentData.consultationType || 'in-person',
       status: 'pending',
       payment_status: 'pending',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      order_id: order.id
     };
 
     // Insert into Supabase
@@ -76,12 +93,59 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       message: 'Appointment created successfully',
-      appointment: appointmentRecord
+      appointment: appointmentRecord,
+      order_id: order.id
     });
   } catch (error) {
     console.error('Server error:', error);
     res.status(500).json({
       error: 'Server error',
+      message: error.message
+    });
+  }
+});
+
+// Verify payment
+router.post('/verify-payment', async (req, res) => {
+  try {
+    const { appointmentId, paymentId, orderId, signature } = req.body;
+
+    // Verify signature
+    const text = orderId + "|" + paymentId;
+    const generated_signature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(text)
+      .digest("hex");
+
+    if (generated_signature !== signature) {
+      return res.status(400).json({
+        error: 'Invalid signature',
+        message: 'Payment verification failed'
+      });
+    }
+
+    // Update appointment status
+    const { error } = await supabase
+      .from('appointments')
+      .update({
+        payment_status: 'completed',
+        status: 'confirmed',
+        payment_id: paymentId
+      })
+      .eq('id', appointmentId);
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({
+      message: 'Payment verified successfully',
+      appointment_id: appointmentId
+    });
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    res.status(500).json({
+      error: 'Payment verification failed',
       message: error.message
     });
   }
