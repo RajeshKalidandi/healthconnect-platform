@@ -1,0 +1,80 @@
+-- Create profiles table if it doesn't exist
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID REFERENCES auth.users(id) PRIMARY KEY,
+    role TEXT NOT NULL DEFAULT 'user',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Create a trigger to automatically create profile for new users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, role)
+    VALUES (NEW.id, 'user')
+    ON CONFLICT (id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop the trigger if it exists
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Create the trigger
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- First, ensure our admin user exists in auth.users
+DO $$
+DECLARE
+    admin_user_id UUID;
+BEGIN
+    -- Delete existing admin user if exists
+    DELETE FROM auth.users WHERE email = 'admin@healthconnect.com';
+    
+    -- Create new admin user
+    INSERT INTO auth.users (
+        instance_id,
+        id,
+        aud,
+        role,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        recovery_sent_at,
+        last_sign_in_at,
+        raw_app_meta_data,
+        raw_user_meta_data,
+        created_at,
+        updated_at,
+        confirmation_token,
+        email_change,
+        email_change_token_new,
+        recovery_token
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        gen_random_uuid(),
+        'authenticated',
+        'authenticated',
+        'admin@healthconnect.com',
+        crypt('admin@2025', gen_salt('bf')),
+        NOW(),
+        NOW(),
+        NOW(),
+        '{"provider":"email","providers":["email"]}',
+        '{"role":"admin"}',
+        NOW(),
+        NOW(),
+        '',
+        '',
+        '',
+        ''
+    ) RETURNING id INTO admin_user_id;
+
+    -- Ensure admin profile exists and has admin role
+    INSERT INTO public.profiles (id, role)
+    VALUES (admin_user_id, 'admin')
+    ON CONFLICT (id) DO UPDATE SET role = 'admin';
+END
+$$;
