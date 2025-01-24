@@ -31,88 +31,63 @@ router.post('/', async (req, res) => {
       patient_name: appointmentData.name,
       patient_email: appointmentData.email,
       patient_phone: appointmentData.phone,
-      date: new Date(appointmentData.appointmentDate).toISOString().split('T')[0], // Format as YYYY-MM-DD
+      date: new Date(appointmentData.appointmentDate).toISOString().split('T')[0],
       time: appointmentData.appointmentTime || '10:00',
       reason: appointmentData.reason || 'General consultation',
       type: appointmentData.consultationType || 'in-person',
       status: 'pending',
-      payment_status: 'pending'
+      payment_status: 'pending',
+      created_at: new Date().toISOString()
     };
 
-    console.log('Attempting to insert appointment:', appointmentRecord);
-
-    // First, check if the table exists and has the correct schema
-    const { error: schemaError } = await supabase
-      .from('appointments')
-      .select('id')
-      .limit(1);
-
-    if (schemaError) {
-      console.error('Schema validation error:', schemaError);
-      return res.status(500).json({
-        error: 'Database schema error',
-        details: process.env.NODE_ENV === 'development' ? schemaError.message : 'Internal server error'
-      });
-    }
-
-    // Insert the appointment
+    // Insert into Supabase
     const { data, error } = await supabase
       .from('appointments')
-      .insert([appointmentRecord])
-      .select()
-      .single();
+      .insert([appointmentRecord]);
 
     if (error) {
-      console.error('Database error details:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        record: appointmentRecord
-      });
+      console.error('Database error:', error);
       return res.status(500).json({
-        error: 'Failed to save appointment',
-        details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        error: 'Database error',
+        message: 'Failed to create appointment'
       });
     }
 
-    // In demo mode, simulate payment and notification services
-    if (process.env.DEMO_MODE === 'true') {
-      const demoData = {
-        ...data,
-        demo_mode: true,
-        payment_id: `demo_pay_${Math.random().toString(36).substr(2, 9)}`,
-        amount: 500,
-        message: 'Appointment created. Payment and notifications will be simulated.'
-      };
-
-      // Broadcast the new appointment to all connected clients
-      req.app.broadcast({
-        type: 'APPOINTMENT_CREATED',
-        appointment: demoData
+    // Broadcast to WebSocket clients
+    const wss = req.app.get('wss');
+    if (wss) {
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'NEW_APPOINTMENT',
+            data: appointmentRecord
+          }));
+        }
       });
-
-      return res.status(201).json(demoData);
     }
 
-    // Broadcast the new appointment to all connected clients
-    req.app.broadcast({
-      type: 'APPOINTMENT_CREATED',
-      appointment: data
+    // Send confirmation email
+    try {
+      // Add email sending logic here
+      console.log('Appointment confirmation email would be sent here');
+    } catch (emailError) {
+      console.error('Email error:', emailError);
+    }
+
+    res.status(201).json({
+      message: 'Appointment created successfully',
+      appointment: appointmentRecord
     });
-
-    // In real mode, return the appointment data
-    res.status(201).json(data);
   } catch (error) {
-    console.error('Error creating appointment:', error);
+    console.error('Server error:', error);
     res.status(500).json({
-      error: 'Failed to create appointment',
-      details: error.message
+      error: 'Server error',
+      message: error.message
     });
   }
 });
 
-// Get all appointments
+// Get all appointments (for admin dashboard)
 router.get('/', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -120,28 +95,16 @@ router.get('/', async (req, res) => {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-
-    // In demo mode, add demo indicators for external services
-    if (process.env.DEMO_MODE === 'true') {
-      const appointmentsWithDemo = data.map(apt => ({
-        ...apt,
-        payment_id: apt.payment_id || `demo_pay_${Math.random().toString(36).substr(2, 9)}`,
-        amount: apt.amount || 500,
-        notifications: {
-          email: 'simulated',
-          whatsapp: 'simulated'
-        }
-      }));
-      return res.json(appointmentsWithDemo);
+    if (error) {
+      throw error;
     }
 
-    res.json(data);
+    res.json({ appointments: data });
   } catch (error) {
     console.error('Error fetching appointments:', error);
     res.status(500).json({
-      error: 'Failed to fetch appointments',
-      details: error.message
+      error: 'Database error',
+      message: 'Failed to fetch appointments'
     });
   }
 });

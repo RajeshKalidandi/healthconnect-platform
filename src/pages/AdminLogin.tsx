@@ -27,16 +27,19 @@ export const AdminLogin = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json"
         },
         body: JSON.stringify(formData),
         credentials: "include",
+        mode: "cors"
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
 
       // Store auth data
       localStorage.setItem("isAdminAuthenticated", "true");

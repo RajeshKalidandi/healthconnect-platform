@@ -15,13 +15,24 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@healthconnect.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin@2025';
+
     // Check admin credentials
-    if (email === 'admin@healthconnect.com' && password === 'admin@2025') {
+    if (email === adminEmail && password === adminPassword) {
       const token = jwt.sign(
         { id: 'admin', email, role: 'admin' },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
+
+      // Set cookie for better security
+      res.cookie('adminToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
 
       return res.json({
         token,
