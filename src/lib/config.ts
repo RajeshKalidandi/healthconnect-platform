@@ -3,11 +3,11 @@ const isDevelopment = import.meta.env.DEV;
 
 export const API_BASE_URL = isDevelopment
   ? 'http://localhost:3000/api'
-  : 'https://healthconnect-backend.onrender.com/api';
+  : 'https://healthconnect-platform.onrender.com/api';
 
 export const WS_BASE_URL = isDevelopment
   ? 'ws://localhost:3000'
-  : 'wss://healthconnect-backend.onrender.com';
+  : 'wss://healthconnect-platform.onrender.com';
 
 // Supabase configuration
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -20,12 +20,15 @@ export const getAuthHeaders = () => {
   const token = localStorage.getItem('adminToken');
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    'Authorization': token ? `Bearer ${token}` : '',
   };
 };
 
 export const handleApiError = (error: any) => {
-  if (error.response?.status === 401) {
+  if (error.message === 'Failed to fetch') {
+    return 'Unable to connect to server. Please check your internet connection.';
+  }
+  if (error.status === 401) {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('isAdminAuthenticated');
     window.location.href = '/admin-login';

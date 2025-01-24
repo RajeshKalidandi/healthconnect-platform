@@ -28,11 +28,13 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:8080',
     'http://localhost:3000',
-    'https://healthconnect-platform.vercel.app' // Add Vercel domain
+    'https://healthconnect-platform.vercel.app',
+    'https://healthconnect-platform.onrender.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Authorization']
 }));
 
 // Middleware
