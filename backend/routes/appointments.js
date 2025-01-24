@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
-const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
 // Initialize Supabase client
@@ -9,12 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_KEY || ''
 );
-
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
 
 // Create new appointment
 router.post('/', async (req, res) => {
@@ -33,13 +26,13 @@ router.post('/', async (req, res) => {
     // Generate appointment ID
     const appointmentId = `apt_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create Razorpay order
-    const order = await razorpay.orders.create({
-      amount: 50000, // ₹500 in paise
+    // Simulate order creation in demo mode
+    const demoOrder = {
+      id: `demo_order_${Math.random().toString(36).substr(2, 9)}`,
+      amount: 50000,
       currency: 'INR',
-      receipt: appointmentId,
-      payment_capture: 1
-    });
+      receipt: appointmentId
+    };
 
     // Create appointment record
     const appointmentRecord = {
@@ -54,7 +47,7 @@ router.post('/', async (req, res) => {
       status: 'pending',
       payment_status: 'pending',
       created_at: new Date().toISOString(),
-      order_id: order.id
+      order_id: demoOrder.id
     };
 
     // Insert into Supabase
@@ -94,7 +87,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       message: 'Appointment created successfully',
       appointment: appointmentRecord,
-      order_id: order.id
+      order_id: demoOrder.id
     });
   } catch (error) {
     console.error('Server error:', error);
@@ -105,22 +98,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Verify payment
+// Verify payment (Demo mode)
 router.post('/verify-payment', async (req, res) => {
   try {
-    const { appointmentId, paymentId, orderId, signature } = req.body;
+    const { appointmentId, paymentId, demo } = req.body;
 
-    // Verify signature
-    const text = orderId + "|" + paymentId;
-    const generated_signature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(text)
-      .digest("hex");
-
-    if (generated_signature !== signature) {
+    if (!demo) {
       return res.status(400).json({
-        error: 'Invalid signature',
-        message: 'Payment verification failed'
+        error: 'Invalid request',
+        message: 'Demo mode required'
       });
     }
 
@@ -139,7 +125,7 @@ router.post('/verify-payment', async (req, res) => {
     }
 
     res.json({
-      message: 'Payment verified successfully',
+      message: 'Payment verified successfully (Demo)',
       appointment_id: appointmentId
     });
   } catch (error) {

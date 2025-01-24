@@ -92,7 +92,7 @@ export const BookAppointment = () => {
     setLoading(true);
 
     try {
-      // First create appointment
+      // Create appointment
       const appointmentResponse = await fetch(`${API_BASE_URL}/appointments`, {
         method: 'POST',
         headers: {
@@ -113,56 +113,35 @@ export const BookAppointment = () => {
 
       const appointmentData = await appointmentResponse.json();
 
-      // Initialize Razorpay payment
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: 50000, // Amount in paise (₹500)
-        currency: "INR",
-        name: "HealthConnect",
-        description: "Appointment Booking",
-        order_id: appointmentData.order_id,
-        handler: async function (response: any) {
-          try {
-            // Verify payment
-            const verifyResponse = await fetch(`${API_BASE_URL}/appointments/verify-payment`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                appointmentId: appointmentData.appointment.id,
-                paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                signature: response.razorpay_signature
-              })
-            });
+      // Simulate successful payment in demo mode
+      try {
+        const verifyResponse = await fetch(`${API_BASE_URL}/appointments/verify-payment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            appointmentId: appointmentData.appointment.id,
+            paymentId: `demo_pay_${Math.random().toString(36).substr(2, 9)}`,
+            orderId: appointmentData.order_id || `demo_order_${Math.random().toString(36).substr(2, 9)}`,
+            signature: 'demo_signature',
+            demo: true
+          })
+        });
 
-            if (!verifyResponse.ok) {
-              throw new Error('Payment verification failed');
-            }
-
-            toast.success("Appointment booked successfully!");
-            // Reset form
-            setFormData({ name: "", email: "", phone: "", reason: "" });
-            setSelectedTime("");
-            setDate(new Date());
-          } catch (error) {
-            console.error('Payment verification error:', error);
-            toast.error("Payment verification failed. Please contact support.");
-          }
-        },
-        prefill: {
-          name: formData.name,
-          email: formData.email,
-          contact: formData.phone
-        },
-        theme: {
-          color: "#16a34a"
+        if (!verifyResponse.ok) {
+          throw new Error('Payment simulation failed');
         }
-      };
 
-      const razorpay = new (window as any).Razorpay(options);
-      razorpay.open();
+        toast.success("Appointment booked successfully! (Demo Mode)");
+        // Reset form
+        setFormData({ name: "", email: "", phone: "", reason: "" });
+        setSelectedTime("");
+        setDate(new Date());
+      } catch (error) {
+        console.error('Payment simulation error:', error);
+        toast.error("Booking failed. Please try again.");
+      }
     } catch (error: any) {
       console.error('Booking error:', error);
       toast.error(error.message || "Failed to book appointment. Please try again.");
