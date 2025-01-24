@@ -51,13 +51,27 @@ export const BookAppointment = () => {
 
   const fetchBookedSlots = async () => {
     if (!date) return;
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/appointments/slots?date=${format(date, 'yyyy-MM-dd')}`);
+      const response = await fetch(
+        `${API_BASE_URL}/appointments/slots?date=${format(date, 'yyyy-MM-dd')}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch booked slots');
+      }
+
       const data = await response.json();
-      setBookedSlots(data.bookedSlots);
+      setBookedSlots(data.slots || []);
     } catch (error) {
       console.error('Error fetching booked slots:', error);
+      toast.error("Failed to load available time slots");
     }
   };
 
@@ -75,37 +89,36 @@ export const BookAppointment = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !selectedTime) {
-      toast.error("Please select both date and time");
-      return;
-    }
-
     setLoading(true);
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/appointments`, {
-        method: "POST",
+      const response = await fetch(`${API_BASE_URL}/appointments`, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...formData,
-          date: format(date, 'yyyy-MM-dd'),
-          time: selectedTime,
-        }),
+          appointmentDate: format(date!, 'yyyy-MM-dd'),
+          appointmentTime: selectedTime,
+          consultationType: 'in-person'
+        })
       });
 
       if (!response.ok) {
-        throw new Error("Failed to book appointment");
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to book appointment');
       }
 
+      const data = await response.json();
       toast.success("Appointment booked successfully!");
       // Reset form
       setFormData({ name: "", email: "", phone: "", reason: "" });
       setSelectedTime("");
       setDate(new Date());
-    } catch (error) {
+    } catch (error: any) {
       console.error('Booking error:', error);
-      toast.error("Failed to book appointment. Please try again.");
+      toast.error(error.message || "Failed to book appointment. Please try again.");
     } finally {
       setLoading(false);
     }
