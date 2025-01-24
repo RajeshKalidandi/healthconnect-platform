@@ -2,8 +2,9 @@ services:
   - type: web
     name: healthconnect-backend
     env: node
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,4 +15,6 @@ services:
       - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: DEMO_MODE
-        value: true
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
