@@ -1,13 +1,14 @@
 // API and WebSocket configuration
-const isDevelopment = import.meta.env.DEV;
+const isDevelopment = import.meta.env.VITE_APP_MODE !== 'production';
+const API_URL = import.meta.env.VITE_API_URL || 'https://healthconnect-platform.onrender.com/api';
 
 export const API_BASE_URL = isDevelopment
   ? 'http://localhost:3000/api'
-  : 'https://healthconnect-platform.onrender.com/api';
+  : API_URL;
 
 export const WS_BASE_URL = isDevelopment
   ? 'ws://localhost:3000'
-  : 'wss://healthconnect-platform.onrender.com';
+  : API_URL.replace('http', 'ws');
 
 // Supabase configuration
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;

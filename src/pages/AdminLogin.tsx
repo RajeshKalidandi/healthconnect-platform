@@ -23,6 +23,7 @@ export const AdminLogin = () => {
     setLoading(true);
 
     try {
+      console.log('Making request to:', `${API_BASE_URL}/auth/login`);
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
@@ -53,7 +54,10 @@ export const AdminLogin = () => {
       navigate("/admin-dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(error.message || "Failed to login. Please try again.");
+      const errorMessage = error.message === 'Failed to fetch' 
+        ? 'Unable to connect to server. Please check if the server is running.'
+        : error.message || "Failed to login. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
