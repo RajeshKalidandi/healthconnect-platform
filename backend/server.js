@@ -24,7 +24,12 @@ app.broadcast = (message) => {
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:3000'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://localhost:3000',
+    'https://healthconnect-platform.vercel.app' // Add Vercel domain
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -70,7 +75,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`WebSocket server is running`);
   console.log(`Demo mode: ${process.env.DEMO_MODE === 'true' ? 'enabled' : 'disabled'}`);
