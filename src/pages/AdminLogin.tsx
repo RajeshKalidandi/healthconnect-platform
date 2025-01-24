@@ -27,11 +27,11 @@ export const AdminLogin = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
+          "Accept": "application/json",
         },
-        body: JSON.stringify(formData),
         credentials: "include",
-        mode: "cors"
+        mode: "cors",
+        body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
@@ -45,6 +45,9 @@ export const AdminLogin = () => {
       localStorage.setItem("isAdminAuthenticated", "true");
       localStorage.setItem("userId", data.user.id);
       localStorage.setItem("adminToken", data.token);
+
+      // Set the token in cookie as well
+      document.cookie = `adminToken=${data.token}; path=/; secure; samesite=strict`;
 
       toast.success("Login successful! Redirecting to dashboard...");
       navigate("/admin-dashboard");
